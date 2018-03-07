@@ -4,8 +4,10 @@
 #![feature(conservative_impl_trait)]
 
 extern crate jack;
+extern crate leaker;
 use jack::*;
 use std::f32::consts::PI;
+use leaker::*;
 
 struct NH;
 
@@ -59,7 +61,7 @@ fn main() {
 // * actual sound
 
 fn generator() -> impl Generator {
-    Sin::new(Add(Mult(Sin::new(1.0), 50.0), 350.0))
+    Delay::new(Sin::new(Add(Mult(Sin::new(1.0), 50.0), 350.0)))
 }
 
 struct Sin<G: Generator> {
@@ -104,5 +106,26 @@ impl<A: Generator, B: Generator> Generator for Mult<A, B> {
 impl Generator for f32 {
     fn next_sample(&mut self, _client: &Client) -> f32 {
         *self
+    }
+}
+
+struct Delay<G: Generator> {
+    input: G,
+    buffer: RingBuf<f32>,
+}
+
+impl<G: Generator> Delay<G> {
+    fn new(input: G) -> Delay<G> {
+        let buffer = RingBuf::new(30000, 0.0);
+        Delay { input, buffer }
+    }
+}
+
+impl<G: Generator> Generator for Delay<G> {
+    fn next_sample(&mut self, client: &Client) -> f32 {
+        let sample = self.input.next_sample(client);
+        let old = self.buffer[0];
+        self.buffer.push(sample);
+        sample * 0.7 + old * 0.3
     }
 }
