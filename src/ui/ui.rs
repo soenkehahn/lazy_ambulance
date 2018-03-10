@@ -9,6 +9,7 @@ use std::sync::Arc;
 static notes: [&str; 12] = [
     "A ", "A♯", "B ", "C ", "C♯", "D ", "D♯", "E ", "F ", "F♯", "G ", "G♯"
 ];
+const PITCHES: usize = 49;
 
 pub fn pitcher(pitch: Arc<AtomicU32>, quit: Sender<bool>) {
     let mut siv = Cursive::new();
@@ -22,11 +23,11 @@ pub fn pitcher(pitch: Arc<AtomicU32>, quit: Sender<bool>) {
     siv.add_layer(
         Dialog::around(
             // We give the number of steps in the constructor
-            SliderView::horizontal(15)
+            SliderView::horizontal(PITCHES)
                 // Sets the initial value
-                .value(7)
+                .value(PITCHES/2)
                 .on_change(move |s, v| {
-                    let title = format!("[ {} ]", notes[(v + notes.len() - 7) % notes.len()]);
+                    let title = format!("[ {} ]", notes[(v + PITCHES/2) % notes.len()]);
                     s.call_on_id("dialog", |view: &mut Dialog| {
                         view.set_title(title)
                     });
@@ -36,7 +37,7 @@ pub fn pitcher(pitch: Arc<AtomicU32>, quit: Sender<bool>) {
                     s.pop_layer();
                     let quit_clone = quit.clone();
                     s.add_layer(
-                        Dialog::text(format!("Lucky note {}!", notes[(v + notes.len() - 7) % notes.len()]))
+                        Dialog::text(format!("Lucky note {}!", notes[(v + PITCHES/2) % notes.len()]))
                             .button("Ok", move |s| {
                                 s.quit();
                                 quit_clone.send(true);
@@ -51,6 +52,6 @@ pub fn pitcher(pitch: Arc<AtomicU32>, quit: Sender<bool>) {
 }
 
 fn adjust_pitch(pitch: &AtomicU32, val: usize) {
-    let new_pitch = 220_f32 * 1.05946309436_f32.powi(val as i32 - 7);
+    let new_pitch = 220_f32 * 1.05946309436_f32.powi(val as i32 - PITCHES as i32 / 2);
     pitch.store(new_pitch.to_bits(), Ordering::Relaxed);
 }
