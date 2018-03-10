@@ -95,7 +95,7 @@ fn generator(pitch: Arc<AtomicU32>) -> impl Generator {
 // }
 
 fn main() {
-    let pitch = Arc::new(AtomicU32::new(220f32.to_bits()));
+    let pitch = Arc::new(AtomicU32::new(440f32.to_bits()));
 
     let (quit_tx, quit_rx) = channel::<bool>();
 

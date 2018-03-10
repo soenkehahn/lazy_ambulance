@@ -60,6 +60,6 @@ pub fn pitcher(pitch: Arc<AtomicU32>, quit: Sender<bool>) {
 }
 
 fn adjust_pitch(pitch: &AtomicU32, val: usize) {
-    let new_pitch = 220_f32 * 1.05946309436_f32.powi(val as i32 - PITCHES as i32 / 2);
+    let new_pitch = 440_f32 * 1.05946309436_f32.powi(val as i32 - PITCHES as i32 / 2);
     pitch.store(new_pitch.to_bits(), Ordering::Relaxed);
 }
