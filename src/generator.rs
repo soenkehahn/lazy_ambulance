@@ -4,23 +4,20 @@ use jack::*;
 
 use std::f32::consts::PI;
 
-pub trait Generator: Send {
+pub trait Generator: Send + Copy {
     fn next_sample(&mut self, _client: &Client) -> f32;
 }
 
 // * actual sound
 
-pub fn generator() -> impl Generator {
-    Delay::new(Sin::new(Add(Mult(Sin::new(1.0), 50.0), 350.0)))
-}
-
+#[derive(Clone, Copy)]
 pub struct Sin<G: Generator> {
     pub freq: G,
     pub phase: f32,
 }
 
 impl<G: Generator> Sin<G> {
-    fn new(freq: G) -> Sin<G> {
+    pub fn new(freq: G) -> Sin<G> {
         Sin {
             freq: freq,
             phase: 0.0,
@@ -37,6 +34,7 @@ impl<G: Generator> Generator for Sin<G> {
     }
 }
 
+#[derive(Clone, Copy)]
 pub struct Add<A: Generator, B: Generator>(pub A, pub B);
 
 impl<A: Generator, B: Generator> Generator for Add<A, B> {
@@ -45,6 +43,7 @@ impl<A: Generator, B: Generator> Generator for Add<A, B> {
     }
 }
 
+#[derive(Clone, Copy)]
 pub struct Mult<A: Generator, B: Generator>(pub A, pub B);
 
 impl<A: Generator, B: Generator> Generator for Mult<A, B> {
@@ -59,23 +58,28 @@ impl Generator for f32 {
     }
 }
 
-pub struct Delay<G: Generator> {
-    pub input: G,
-    pub buffer: RingBuf<f32>,
-}
+// #[derive(Clone, Copy)]
+// pub struct Delay<G: Generator> {
+//     pub input: G,
+//     pub buffer: RingBuf<f32>,
+// }
 
-impl<G: Generator> Delay<G> {
-    fn new(input: G) -> Delay<G> {
-        let buffer = RingBuf::new(30000, 0.0);
-        Delay { input, buffer }
-    }
-}
+// impl<G: Generator> Delay<G> {
+//     pub fn new(input: G) -> Delay<G> {
+//         Self::new_bufsize(input, 30000)
+//     }
 
-impl<G: Generator> Generator for Delay<G> {
-    fn next_sample(&mut self, client: &Client) -> f32 {
-        let sample = self.input.next_sample(client);
-        let old = self.buffer[0];
-        self.buffer.push(sample);
-        sample * 0.7 + old * 0.3
-    }
-}
+//     pub fn new_bufsize(input: G, bufsize: usize) -> Delay<G> {
+//         let buffer = RingBuf::new(bufsize, 0.0);
+//         Delay { input, buffer }
+//     }
+// }
+
+// impl<G: Generator> Generator for Delay<G> {
+//     fn next_sample(&mut self, client: &Client) -> f32 {
+//         let sample = self.input.next_sample(client);
+//         let old = self.buffer[0];
+//         self.buffer.push(sample);
+//         sample * 0.7 + old * 0.3
+//     }
+// }
