@@ -11,6 +11,14 @@ static notes: [&str; 12] = [
 ];
 const PITCHES: usize = 49;
 
+fn note_name(idx: usize) -> &'static str {
+    let nlen = notes.len() as isize;
+    let adj_idx = idx as isize - PITCHES as isize / 2;
+    let node_idx = (adj_idx % nlen + nlen) % nlen;
+
+    notes[node_idx as usize]
+}
+
 pub fn pitcher(pitch: Arc<AtomicU32>, quit: Sender<bool>) {
     let mut siv = Cursive::new();
 
@@ -27,7 +35,7 @@ pub fn pitcher(pitch: Arc<AtomicU32>, quit: Sender<bool>) {
                 // Sets the initial value
                 .value(PITCHES/2)
                 .on_change(move |s, v| {
-                    let title = format!("[ {} ]", notes[(v + PITCHES/2) % notes.len()]);
+                    let title = format!("[ {} ]", note_name(v));
                     s.call_on_id("dialog", |view: &mut Dialog| {
                         view.set_title(title)
                     });
@@ -37,14 +45,14 @@ pub fn pitcher(pitch: Arc<AtomicU32>, quit: Sender<bool>) {
                     s.pop_layer();
                     let quit_clone = quit.clone();
                     s.add_layer(
-                        Dialog::text(format!("Lucky note {}!", notes[(v + PITCHES/2) % notes.len()]))
+                        Dialog::text(format!("Lucky note {}!", note_name(v)))
                             .button("Ok", move |s| {
                                 s.quit();
                                 quit_clone.send(true);
                             }),
                     );
                 }),
-        ).title(format!("[ {} ]", notes[0]))
+        ).title(format!("[ {} ]", note_name(PITCHES / 2)))
             .with_id("dialog"),
     );
 
