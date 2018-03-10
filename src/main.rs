@@ -1,3 +1,4 @@
+#![feature(integer_atomics)]
 #![feature(inclusive_range_syntax)]
 #![feature(allocator_api)]
 #![feature(conservative_impl_trait)]
@@ -5,23 +6,36 @@
 #![feature(type_ascription)]
 
 extern crate jack;
-extern crate leaker;
+extern crate lazy_ambulance;
 use jack::*;
-use leaker::generator::*;
+use lazy_ambulance::generator::*;
+use lazy_ambulance::ui;
+use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::Arc;
 
 struct NH;
 
 impl NotificationHandler for NH {}
 
-struct PH<G: Generator> {
+struct PH<F, G>
+where
+    F: Fn(f32) -> G + Send,
+    G: Generator,
+{
     ports: Vec<Port<AudioOut>>,
-    generator: G,
+    generator_fn: F,
+    pitch: Arc<AtomicU32>,
 }
 
-impl<G: Generator> ProcessHandler for PH<G> {
+impl<F, G> ProcessHandler for PH<F, G>
+where
+    F: Fn(f32) -> G + Send,
+    G: Generator,
+{
     fn process(&mut self, client: &Client, scope: &ProcessScope) -> Control {
+        let base = f32::from_bits(self.pitch.load(Ordering::Relaxed));
         for sample_index in 0..(scope.n_frames() as usize) {
-            let sample = self.generator.next_sample(client);
+            let sample = (self.generator_fn)(base).next_sample(client);
             for port in self.ports.iter_mut() {
                 let slice = port.as_mut_slice(scope);
                 slice[sample_index] = sample;
@@ -31,7 +45,7 @@ impl<G: Generator> ProcessHandler for PH<G> {
     }
 }
 
-fn main_() -> Result<(), jack::Error> {
+fn main_(pitch: Arc<AtomicU32>) -> Result<(), jack::Error> {
     let (client, _status) = Client::new("rusty_client", jack::ClientOptions::NO_START_SERVER)?;
     let mut outputs = vec![];
     outputs.push(client.register_port("output1", AudioOut)?);
@@ -41,20 +55,20 @@ fn main_() -> Result<(), jack::Error> {
         NH,
         PH {
             ports: outputs,
-            generator: generator(),
+            generator_fn: generator,
+            pitch,
         },
     )?;
 
-    std::thread::sleep(std::time::Duration::new(50, 0));
-
-    Ok(())
+    loop {
+        std::thread::yield_now();
+    }
 }
 
 const STEP: f32 = 1.05946309436;
 
-fn generator() -> impl Generator {
-    let base: f32 = 220.0 * STEP.powf(3.0) / 2.0;
-    Add(note(base), note(base * STEP.powf(7.0)))
+fn generator(base: f32) -> impl Generator {
+    Sin::new(base)
     // Add(
     //     Add(note(base), note(base * STEP.powf(7.0))),
     //     note(base * 2.0),
@@ -91,5 +105,7 @@ fn note(pitch: f32) -> impl Generator {
 }
 
 fn main() {
-    main_().unwrap();
+    let pitch = Arc::new(AtomicU32::new(440f32.to_bits()));
+    // ui::pitcher(pitch.clone());
+    main_(pitch).unwrap();
 }
