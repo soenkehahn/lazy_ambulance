@@ -3,14 +3,16 @@ use ringbuf::RingBuf;
 use jack::*;
 
 use std::f32::consts::PI;
+use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::Arc;
 
-pub trait Generator: Send + Copy {
+pub trait Generator: Send + Clone {
     fn next_sample(&mut self, _client: &Client) -> f32;
 }
 
 // * actual sound
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct Sin<G: Generator> {
     pub freq: G,
     pub phase: f32,
@@ -34,7 +36,7 @@ impl<G: Generator> Generator for Sin<G> {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct Add<A: Generator, B: Generator>(pub A, pub B);
 
 impl<A: Generator, B: Generator> Generator for Add<A, B> {
@@ -43,7 +45,7 @@ impl<A: Generator, B: Generator> Generator for Add<A, B> {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct Mult<A: Generator, B: Generator>(pub A, pub B);
 
 impl<A: Generator, B: Generator> Generator for Mult<A, B> {
@@ -55,6 +57,21 @@ impl<A: Generator, B: Generator> Generator for Mult<A, B> {
 impl Generator for f32 {
     fn next_sample(&mut self, _client: &Client) -> f32 {
         *self
+    }
+}
+
+#[derive(Clone)]
+pub struct Variable(Arc<AtomicU32>);
+
+impl Variable {
+    pub fn new(pitch: Arc<AtomicU32>) -> Variable {
+        Variable(pitch)
+    }
+}
+
+impl Generator for Variable {
+    fn next_sample(&mut self, _client: &Client) -> f32 {
+        f32::from_bits(self.0.load(Ordering::Relaxed))
     }
 }
 
