@@ -13,6 +13,7 @@ use lazy_ambulance::ui;
 
 use jack::*;
 
+use std::f32::consts::PI;
 use std::sync::Arc;
 use std::sync::atomic::AtomicU32;
 use std::sync::mpsc::{channel, Receiver};
@@ -27,10 +28,18 @@ struct PH<G: Generator> {
     generator: G,
 }
 
+static mut BURP: i32 = 0;
+
 impl<G: Generator> ProcessHandler for PH<G> {
     fn process(&mut self, client: &Client, scope: &ProcessScope) -> Control {
         for sample_index in 0..(scope.n_frames() as usize) {
             let sample = self.generator.next_sample(client);
+            unsafe {
+                if BURP < 100 {
+                    println!("sample: {}", sample);
+                    BURP += 1;
+                }
+            }
             for port in self.ports.iter_mut() {
                 let slice = port.as_mut_slice(scope);
                 slice[sample_index] = sample;
@@ -46,7 +55,8 @@ fn main_(pitch: Arc<AtomicU32>, quit: Receiver<bool>) -> Result<(), jack::Error>
     outputs.push(client.register_port("output1", AudioOut)?);
     outputs.push(client.register_port("output2", AudioOut)?);
 
-    let generator = Sin::new(Variable::new(pitch));
+    let generator = Square::new(Variable::new(pitch));
+    // let generator = Variable::new(pitch);
     let _async_client = client.activate_async(
         NH,
         PH {

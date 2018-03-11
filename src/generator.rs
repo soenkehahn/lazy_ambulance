@@ -28,9 +28,46 @@ impl<G: Generator> Sin<G> {
 impl<G: Generator> Generator for Sin<G> {
     fn next_sample(&mut self, client: &Client) -> f32 {
         let result = self.phase.sin();
-        self.phase += self.freq.next_sample(client) * 2.0 * PI / (client.sample_rate() as f32);
+        let samp = self.freq.next_sample(client);
+        self.phase += samp * 2.0 * PI / (client.sample_rate() as f32);
         self.phase %= 2.0 * PI;
         result
+    }
+}
+
+#[derive(Clone)]
+pub struct Square<G: Generator> {
+    pub freq: G,
+    pub phase: f32,
+}
+
+impl<G: Generator> Square<G> {
+    pub fn new(freq: G) -> Square<G> {
+        Square {
+            freq: freq,
+            phase: 0.0,
+        }
+    }
+}
+
+impl<G: Generator> Generator for Square<G> {
+    fn next_sample(&mut self, client: &Client) -> f32 {
+        let samp = self.freq.next_sample(client);
+        self.phase += samp * 4.0 / (client.sample_rate() as f32);
+
+        if self.phase >= 2.0 {
+            self.phase = -2.0
+        } else if self.phase <= -2.0 {
+            self.phase = 2.0
+        }
+
+        if self.phase > 1.0 {
+            2.0 - self.phase
+        } else if self.phase < -1.0 {
+            -2.0 - self.phase
+        } else {
+            self.phase
+        }
     }
 }
 
