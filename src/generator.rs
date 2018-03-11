@@ -1,5 +1,3 @@
-use ringbuf::RingBuf;
-
 use jack::*;
 
 use std::f32::consts::PI;

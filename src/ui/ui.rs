@@ -6,17 +6,17 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::mpsc::Sender;
 use std::sync::Arc;
 
-static notes: [&str; 12] = [
+static NOTE_NAMES: [&str; 12] = [
     "A ", "A♯", "B ", "C ", "C♯", "D ", "D♯", "E ", "F ", "F♯", "G ", "G♯"
 ];
 const PITCHES: usize = 49;
 
 fn note_name(idx: usize) -> &'static str {
-    let nlen = notes.len() as isize;
+    let nlen = NOTE_NAMES.len() as isize;
     let adj_idx = idx as isize - PITCHES as isize / 2;
     let node_idx = (adj_idx % nlen + nlen) % nlen;
 
-    notes[node_idx as usize]
+    NOTE_NAMES[node_idx as usize]
 }
 
 pub fn pitcher(pitch: Arc<AtomicU32>, quit: Sender<bool>) {
@@ -25,7 +25,7 @@ pub fn pitcher(pitch: Arc<AtomicU32>, quit: Sender<bool>) {
     let quit_clone = quit.clone();
     siv.add_global_callback('q', move |s| {
         s.quit();
-        quit_clone.send(true);
+        let _ = quit_clone.send(true);
     });
 
     siv.add_layer(
@@ -48,7 +48,7 @@ pub fn pitcher(pitch: Arc<AtomicU32>, quit: Sender<bool>) {
                         Dialog::text(format!("Lucky note {}!", note_name(v)))
                             .button("Ok", move |s| {
                                 s.quit();
-                                quit_clone.send(true);
+                                let _ = quit_clone.send(true);
                             }),
                     );
                 }),
@@ -59,7 +59,38 @@ pub fn pitcher(pitch: Arc<AtomicU32>, quit: Sender<bool>) {
     siv.run();
 }
 
+// fn note(pitch: f32) -> impl Generator {
+//     let base = Sin::new(pitch);
+//     let low_second = Mult(base, 1.0 / 2.0);
+//     let high_second = Mult(base, 2.0);
+//     let low_third = Mult(base, 1.0 / 3.0);
+//     let high_third = Mult(base, 3.0);
+//     let low_fifth = Mult(base, 1.0 / 5.0);
+//     let high_fifth = Mult(base, 5.0);
+//     let low_seventh = Mult(base, 1.0 / 7.0);
+//     let high_seventh = Mult(base, 7.0);
+
+//     Add(
+//         Add(
+//             Add(
+//                 Add(
+//                     Add(
+//                         Add(Add(Add(base, low_second), high_second), low_third),
+//                         high_third,
+//                     ),
+//                     low_fifth,
+//                 ),
+//                 high_fifth,
+//             ),
+//             low_seventh,
+//         ),
+//         high_seventh,
+//     )
+// }
+
+const STEP: f32 = 1.05946309436;
+
 fn adjust_pitch(pitch: &AtomicU32, val: usize) {
-    let new_pitch = 440_f32 * 1.05946309436_f32.powi(val as i32 - PITCHES as i32 / 2);
+    let new_pitch = 440_f32 * STEP.powi(val as i32 - PITCHES as i32 / 2);
     pitch.store(new_pitch.to_bits(), Ordering::Relaxed);
 }
